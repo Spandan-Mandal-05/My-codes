@@ -1,7 +1,8 @@
 # Shooting Method for Eigen Value Problem
 import matplotlib.pyplot as plt
 import numpy as np
-import time
+import time #To measure the time taken for execution
+import scipy.special as sp
 
 # Define Differential Eq
 def d2y_dx2(x, y, g, E):

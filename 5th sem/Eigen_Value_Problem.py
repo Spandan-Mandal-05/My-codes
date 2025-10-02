@@ -57,7 +57,7 @@ fig, ax = plt.subplots(figsize=[12, 8])
 
 # Start timing
 start_time = time.time()
-"""
+
 Energys = np.linspace(0.49,2.6,1000)
 y_finals = [sol_ode((xi,yi,gg_shoot),xf, E)[2] for E in Energys] 
 
@@ -81,7 +81,7 @@ for i in range(len(Energys)-1):
         roots.append((Energys[i] + Energys[i+1]) / 2)
 print("Eigen energies ≈", np.round(roots,2))
 E_n = np.round(roots,2)
-"""
+
 # Plot setup
 fig, ax = plt.subplots(figsize=[12, 8])
 
