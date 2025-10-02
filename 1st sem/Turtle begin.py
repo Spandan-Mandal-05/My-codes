@@ -1,0 +1,22 @@
+import turtle
+screen= turtle.Screen()
+pen=turtle.Turtle()
+screen.bgcolor("black")
+pen.color("red")
+pen.speed("fastest")
+
+for i in range(20):
+    pen.forward(200-10*i)
+    pen.circle(50-2.5*i)
+    pen.right(90)
+pen.up()
+pen.forward(200)
+pen.down()
+pen.right(30)
+pen.forward(70)
+pen.left(30)
+pen.circle(25,200)
+pen.right(180)
+pen.circle(25,200)
+pen.left(30)
+pen.forward(70)
