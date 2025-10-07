@@ -20,15 +20,26 @@ import time
 #   - Harmonic Oscillator (default)
 # =============================================================
 def V(x):
-    # Uncomment one of the following potentials ↓↓↓
+    # Uncomment one of the following potentials
     
     # --- Infinite Square Well ---
     # L = 2
     # return np.where((x >= -L/2) & (x <= L/2), 0, 1e6)
 
+    # --- Finite Square Well ---
+    # V0 = 5.0   # Depth of the well
+    # L = 2.0    # Width of the well
+    # return np.where(np.abs(x) <= L/2, -V0, 0.0)
+
+    # --- Finite Barrier (Rectangular Barrier) ---
+     V0 = 5.0   # Height of the barrier
+     L = 2.0    # Width of the barrier
+     return np.where(np.abs(x) <= L/2, V0, 0.0)
+
     # --- Harmonic Oscillator (default) ---
-    w = 1  # Frequency ω
-    return 0.5 * w**2 * x**2
+    #w = 1  # Frequency ω
+    #return 0.5 * w**2 * x**2
+
 
 
 
@@ -63,7 +74,7 @@ def d2y_dx2(x, y, g, E):
 #       y_boundary: final value ψ(xf)
 # =============================================================
 def sol_ode(initial_state, boundary_state, E):
-    n = 10000                   # Change this for resolution
+    n = 5000                   # Change this for resolution
     xf = boundary_state
     xi, yi, gi = initial_state
     h = (xf - xi) / (n - 1)     # Step size
@@ -99,7 +110,7 @@ def sol_ode(initial_state, boundary_state, E):
 #   - Infinite well: ψ(-L/2)=ψ(L/2)=0
 #   - Harmonic oscillator: ψ(±∞)=0
 # =============================================================
-xi, xf = -5, 5   # Integration limits
+xi, xf = -10, 10   # Integration limits
 yi, yf = 0, 0     # ψ(xi)=ψ(xf)=0
 gg_shoot = 2      # Initial guess for ψ'(xi)
 
@@ -112,7 +123,7 @@ gg_shoot = 2      # Initial guess for ψ'(xi)
 fig, ax = plt.subplots(figsize=[12, 8])
 start_time = time.time()
 
-Energys = np.linspace(0.49, 10, 1000)
+Energys = np.linspace(0, 4, 5000)
 y_finals = [sol_ode((xi, yi, gg_shoot), xf, E)[2] for E in Energys]
 
 end_time = time.time()
@@ -126,16 +137,30 @@ plt.grid(True)
 plt.show()
 
 # =============================================================
-# 6. ROOT FINDING FOR EIGENVALUES
+# 6. ROOT FINDING FOR EIGENVALUES (GENERALIZED)
 # -------------------------------------------------------------
-# Where ψ(xf) changes sign ⇒ eigenenergy
+# For bound states (LHO, wells): detects sign change of ψ(xf)
+# For barriers / scattering: detects minima of |ψ(xf)|
 # =============================================================
 roots = []
-for i in range(len(Energys) - 1):
+
+# Compute absolute boundary amplitude
+abs_yf = np.abs(y_finals)
+
+for i in range(1, len(Energys) - 1):
+    # --- Case 1: Bound-state (sign change) ---
     if y_finals[i] * y_finals[i + 1] < 0:
         roots.append((Energys[i] + Energys[i + 1]) / 2)
-E_n = np.round(roots, 2)
-print("Eigen energies ≈", E_n)
+
+    # --- Case 2: Quasi-bound / Barrier (local minima) ---
+    elif abs_yf[i] < abs_yf[i - 1] and abs_yf[i] < abs_yf[i + 1]:
+        roots.append(Energys[i])
+
+# Remove duplicates and round
+roots = sorted(list(set(np.round(roots, 3))))
+print("Eigen energies ≈", roots)
+E_n = np.array(roots)
+
 
 # =============================================================
 # 7. PLOT NORMALIZED WAVEFUNCTION FOR CHOSEN EIGENSTATE
@@ -146,7 +171,7 @@ print("Eigen energies ≈", E_n)
 #    n_index = 2 → Second excited state, etc.
 # =============================================================
 
-n_index = 7  # Change this to plot desired eigenstate
+n_index = 0  # Change this to plot desired eigenstate
 
 E_selected = E_n[n_index]
 
