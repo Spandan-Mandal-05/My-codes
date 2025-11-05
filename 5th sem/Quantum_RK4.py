@@ -9,6 +9,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+from scipy.integrate import solve_ivp  
 
 # =============================================================
 # 1. DEFINE POTENTIAL FUNCTION V(x)
@@ -75,33 +76,30 @@ def d2y_dx2(x, y, g, E):
 #       y_boundary: final value ψ(xf)
 # =============================================================
 def sol_ode(initial_state, boundary_state, E):
-    n = 10000                   # Change this for resolution
-    xf = boundary_state
     xi, yi, gi = initial_state
-    h = (xf - xi) / (n - 1)     # Step size
+    xf = boundary_state
 
-    xx = np.linspace(xi, xf + h, n + 1)
-    yy_modified = np.zeros_like(xx)
-    gg_modified = np.zeros_like(xx)
+    # Schrödinger system: y' = g, g' = (2m/ħ²)(V(x) - E)y
+    def sch_eq(x, Y):
+        y, g = Y
+        return [g, 2 * (V(x) - E) * y]   # m = ħ = 1 in natural units
 
-    yy_modified[0], gg_modified[0] = yi, gi
+    # Integrate using SciPy’s adaptive RK45 solver
+    sol = solve_ivp(
+        sch_eq,
+        t_span=(xi, xf),
+        y0=[yi, gi],
+        method='RK45',
+        t_eval=np.linspace(xi, xf, 10000),
+        rtol=1e-8,
+        atol=1e-8
+    )
 
-    # --- Heun’s (Improved Euler) Integration Loop ---
-    for i in range(n):
-        gg_temp = gg_modified[i] + h * d2y_dx2(xx[i], yy_modified[i], gg_modified[i], E)
-        yy_temp = yy_modified[i] + h * gg_temp
-
-        gg_modified[i + 1] = gg_modified[i] + h / 2 * (
-            d2y_dx2(xx[i + 1], yy_temp, gg_temp, E) +
-            d2y_dx2(xx[i], yy_modified[i], gg_modified[i], E)
-        )
-        yy_modified[i + 1] = yy_modified[i] + h / 2 * (gg_modified[i] + gg_temp)
-
-        #gg_modified[i+1] = gg_modified[i] + h * d2y_dx2(xx[i], yy_modified[i], gg_modified[i])
-        #yy_modified[i+1] = yy_modified[i] + h * gg_modified[i+1]
-
-    y_boundary = yy_modified[n]
+    xx = sol.t
+    yy_modified = sol.y[0]
+    y_boundary = yy_modified[-1]
     return xx, yy_modified, y_boundary
+
 
 # =============================================================
 # 4. BOUNDARY CONDITIONS
@@ -194,55 +192,3 @@ plt.title(f"Shooting Method: Eigenstate n = {n_index}")
 plt.legend()
 plt.grid(True)
 plt.show()
-
-# =============================================================
-# 8. OPTIONAL: REFINED SHOOTING LOOP (COMMENTED)
-# -------------------------------------------------------------
-# Use this section to iteratively refine ψ'(0)
-# using bisection to minimize ψ(xf) error.
-# Uncomment and modify as needed.
-# =============================================================
-
-"""
-# --- Initial derivative guesses ---
-gg_shoot_i = 1
-gg_shoot_f = 2
-
-# --- First two trial integrations ---
-xx, yy_modified, y_boundary_i = sol_ode((xi, yi, gg_shoot_i), xf, E_n[1])
-plt.plot(xx, 2*yy_modified, color="black", alpha=0.6)
-xx, yy_modified, y_boundary_f = sol_ode((xi, yi, gg_shoot_f), xf, E_n[1])
-plt.plot(xx, yy_modified, color="black", alpha=0.2)
-
-error_i = yf - y_boundary_i
-error_f = yf - y_boundary_f
-tolerance = 1e-6
-
-# --- Shooting method iteration ---
-while abs(error_f - error_i) >= tolerance:
-    if error_i * error_f < 0:
-        c = (gg_shoot_i + gg_shoot_f) / 2
-        xx, yy_modified, y_boundary_c = sol_ode((xi, yi, c), xf, E_n[0])
-        plt.plot(xx, yy_modified, color="black", alpha=0.2)
-        error_c = yf - y_boundary_c
-
-        if error_c * error_f < 0:
-            gg_shoot_i, error_i = c, error_c
-        elif error_c * error_i < 0:
-            gg_shoot_f, error_f = c, error_c
-        else:
-            print("Converged or undefined behavior")
-            break
-
-# --- Final refined solution ---
-xx, yy_modified, _ = sol_ode((xi, yi, c), xf, E_n[0])
-plt.plot(xx, yy_modified, color="blue", linewidth=2,
-         label=f"Shooting Method (g = {c:.6f})")
-
-plt.xlabel("x")
-plt.ylabel("ψ(x)")
-plt.title("Refined Shooting Method vs Analytical")
-plt.legend()
-plt.grid(True)
-plt.show()
-"""

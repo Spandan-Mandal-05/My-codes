@@ -1,50 +1,150 @@
+# Shooting Method for Eigen Value Problem
 import matplotlib.pyplot as plt
 import numpy as np
-pi=np.pi 
-time_sqr=[0.578,0.734,0.856,0.951,1.104]
-loads=np.arange(0.05,0.3,0.05)
-slope1, intercept1 = np.polyfit(loads,time_sqr, 1)
-K=4*pi**2/slope1
-print("spring const.",K,"N/m")
-extension=np.array([3,5.9,8.9,12,15])/100
-slope2, intercept2 = np.polyfit(loads,extension, 1)
-g = acc_gra = K * slope2 
-print("gravitational acc",g,"m/s^2")
+import time
 
-# Generate fit data
-fit_loads = np.linspace(-0.050, 0.300, 100)
-fit_dif_sq_times = intercept1 + slope1 * fit_loads
-fit_extensions = intercept2 + slope2 * fit_loads
+# Define Potential
+def V(x):
+    #L = 2  # Width of the potential well
+    #return np.where((x >= -L/2) & (x <= L/2), 0, 1e6) # Free Particle
 
-# Plot T² vs Load
-plt.figure(figsize=(12, 8))
-plt.plot(fit_loads, fit_dif_sq_times, label=f"Spring Constant K = {K:.2f} N/m")
-plt.scatter(loads, time_sqr, label="Data Points", color='r')
-plt.axvline(x=0, alpha=0.6, linestyle="--")
-plt.axhline(y=0, alpha=0.6, linestyle="--")
-plt.xlabel('Load (gm)')
-plt.ylabel('T² (s²)')
-plt.title('T² vs Load')
+    w = 1  # Frequency for Harmonic Oscillator
+    return 0.5 * w**2 * x**2  # Harmonic Oscillator Potential
+
+# Define Differential Eq
+def d2y_dx2(x, y, g, E):
+    mass = 1 # Mass of the particle
+    h_cut = 1 # Planck's constant
+    return  (V(x) - E) * y * 2 * mass / h_cut**2
+    #return -2*E*y  # E = Energy Eigen Value 
+
+# Define the ODE solver using the Shooting Method
+def sol_ode(initial_state, boundary_state, E):
+    n = 2000
+    xf = boundary_state
+    xi, yi, gi = initial_state
+    h = (xf - xi) / (n - 1)
+
+    xx = np.linspace(xi, xf + h, n + 1)
+
+    yy_modified = np.zeros_like(xx)
+    gg_modified = np.zeros_like(xx)
+
+    yy_modified[0], gg_modified[0] = yi, gi
+
+    for i in range(n):
+        gg_temp = gg_modified[i] + h * d2y_dx2(xx[i], yy_modified[i], gg_modified[i], E)
+        yy_temp = yy_modified[i] + h * gg_temp
+
+        gg_modified[i + 1] = gg_modified[i] + h / 2 * (d2y_dx2(xx[i + 1], yy_temp, gg_temp, E) + d2y_dx2(xx[i], yy_modified[i], gg_modified[i], E))
+        yy_modified[i + 1] = yy_modified[i] + h / 2 * (gg_modified[i] + gg_temp)
+
+        #gg_modified[i+1] = gg_modified[i] + h * d2y_dx2(xx[i], yy_modified[i], gg_modified[i])
+        #yy_modified[i+1] = yy_modified[i] + h * gg_modified[i+1]
+
+    y_boundary = yy_modified[n]
+    return xx, yy_modified, y_boundary
+
+# Boundary conditions
+xi, xf = -5, 5
+yi, yf = 0, 0
+
+# Initial guesses for y'(0)
+gg_shoot = 2
+
+# Plot setup
+fig, ax = plt.subplots(figsize=[12, 8])
+
+# Start timing
+start_time = time.time()
+
+Energys = np.linspace(0.49,2.6,1000)
+y_finals = [sol_ode((xi,yi,gg_shoot),xf, E)[2] for E in Energys] 
+
+# End timing
+end_time = time.time()
+elapsed_time = end_time - start_time
+print(f"Final Shooting Method Run Time: {elapsed_time:.4f} seconds")
+
+# Plot numerical and analytical solutions
+plt.plot(Energys, y_finals)
+plt.xlabel("Energy Eigen Value (E)")
+plt.ylabel("y(1)")
+plt.title("Shooting Method for Eigen Value Problem")
 plt.legend()
 plt.grid(True)
-#plt.show()
+plt.show()
 
-# Plot Extension vs Load
-plt.figure(figsize=(12, 8))
-plt.plot(fit_loads, fit_extensions, label=f"Gravitational Acc. g = {g:.2f} m/s²")
-plt.scatter(loads, extension, label="Data Points", color='g')
-plt.axvline(x=0, alpha=0.6, linestyle="--")
-plt.axhline(y=0, alpha=0.6, linestyle="--")
-plt.xlabel('Load (gm)')
-plt.ylabel('Extension (cm)')
-plt.title('Load vs Extension')
+roots = []
+for i in range(len(Energys)-1):
+    if y_finals[i] * y_finals[i+1] < 0:
+        roots.append((Energys[i] + Energys[i+1]) / 2)
+print("Eigen energies ≈", np.round(roots,2))
+E_n = np.round(roots,2)
+
+# Plot setup
+fig, ax = plt.subplots(figsize=[12, 8])
+
+xx, yy_modified, y_boundary_i = sol_ode((xi, yi, gg_shoot), xf, 1.5)
+plt.plot(xx, V(xx), color="red", alpha=0.6, label="Potential  V(x)")
+
+# Normalize y(x)
+norm = np.trapz(yy_modified**2, xx)**0.5
+yy_norm = yy_modified / norm
+
+# Plot potential and scaled wavefunction
+plt.plot(xx, yy_norm**2+1.5 , label="Normalized wavefunction")
+#plt.plot(xx, V(xx)/10, label="Potential V(x)/10")  # divide by 10 to fit same scale
 plt.legend()
-plt.grid(True)
-#plt.show()
 
-# Compute constants
-R = 1.14075/100
-r = 0.0593 / 100
-N = 108
-G = rigidity_modulus = K*4*N*R**3/r**4
-print(f"Rigidity Modulus = {G/10**9}")
+"""                                 
+# Initial guesses for y'(0)
+gg_shoot_i = 1
+gg_shoot_f = 2
+
+
+
+# Initial two trial solutions
+xx, yy_modified, y_boundary_i = sol_ode((xi, yi, gg_shoot_i), xf, E_n[1])
+plt.plot(xx, 2*yy_modified, color="black", alpha=0.6)
+xx, yy_modified, y_boundary_f = sol_ode((xi, yi, gg_shoot_f), xf, E_n[1])
+plt.plot(xx, yy_modified, color="black", alpha=0.2)
+
+
+# Error at boundary
+error_i = yf - y_boundary_i
+error_f = yf - y_boundary_f
+tolerance = 1e-6
+
+# Shooting method iteration
+while abs(error_f - error_i) >= tolerance:
+    if error_i * error_f < 0:
+        c = (gg_shoot_i + gg_shoot_f) / 2
+        xx, yy_modified, y_boundary_c = sol_ode((xi, yi, c), xf, E_n[0])
+        plt.plot(xx, yy_modified, color="black", alpha=0.2)
+
+        error_c = yf - y_boundary_c
+
+        if error_c * error_f < 0:
+            gg_shoot_i = c
+            error_i = error_c
+        elif error_c * error_i < 0:
+            gg_shoot_f = c
+            error_f = error_c
+        else:
+            print("Converged or undefined behavior")
+            break
+
+
+# Final solution
+xx, yy_modified, _ = sol_ode((xi, yi, c), xf, E_n[0])
+
+# Plot numerical and analytical solutions
+plt.plot(xx, yy_modified, color="blue", linewidth=2, label=f"Shooting Method (g = {c:.6f})")
+
+plt.xlabel("x")
+plt.ylabel("y(x)")
+plt.title("Shooting Method vs Analytical")
+plt.legend()
+plt.grid(True) """
+plt.show()
