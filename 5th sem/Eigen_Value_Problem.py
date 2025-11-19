@@ -75,7 +75,7 @@ def d2y_dx2(x, y, g, E):
 #       y_boundary: final value ψ(xf)
 # =============================================================
 def sol_ode(initial_state, boundary_state, E):
-    n = 10000                   # Change this for resolution
+    n = 5000                   # Change this for resolution
     xf = boundary_state
     xi, yi, gi = initial_state
     h = (xf - xi) / (n - 1)     # Step size
@@ -124,13 +124,14 @@ gg_shoot = 2      # Initial guess for ψ'(xi)
 fig, ax = plt.subplots(figsize=[12, 8])
 start_time = time.time()
 
-Energys = np.linspace(-5, 2, 1000)
+Energys = np.linspace(0, 5, 500)
 y_finals = [sol_ode((xi, yi, gg_shoot), xf, E)[2] for E in Energys]
 
 end_time = time.time()
 print(f"Final Shooting Method Run Time: {end_time - start_time:.4f} seconds")
 
-plt.plot(Energys, y_finals)
+y_finals_dif = np.array(y_finals) - yf
+plt.plot(Energys, y_finals_dif)
 plt.xlabel("Energy Eigen Value (E)")
 plt.ylabel("ψ(xf)")
 plt.title("Shooting Method for Eigenvalue Problem")
@@ -146,11 +147,11 @@ plt.show()
 roots = []
 
 # Compute absolute boundary amplitude
-abs_yf = np.abs(y_finals)
+abs_yf = np.abs(y_finals_dif)
 
 for i in range(1, len(Energys) - 1):
     # --- Case 1: Bound-state (sign change) ---
-    if y_finals[i] * y_finals[i + 1] < 0:
+    if (y_finals_dif[i]) * (y_finals_dif[i + 1]) < 0:
         roots.append((Energys[i] + Energys[i + 1]) / 2)
 
     # --- Case 2: Quasi-bound / Barrier (local minima) ---
@@ -161,7 +162,6 @@ for i in range(1, len(Energys) - 1):
 roots = sorted(list(set(np.round(roots, 1))))
 print("Eigen energies ≈", roots)
 E_n = np.array(roots)
-
 
 # =============================================================
 # 7. PLOT NORMALIZED WAVEFUNCTION FOR CHOSEN EIGENSTATE
